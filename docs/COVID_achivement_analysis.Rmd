@@ -1,0 +1,1191 @@
+---
+title: "Effects of COVID on student achievement"
+author: "Murray Logan"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document2:
+    code_folding: hide
+    collapse: yes
+    df_print: paged
+    fig_caption: yes
+    fig_height: 4
+    fig_width: 4
+    highlight: textmate
+    theme: spacelab
+    toc: yes
+    toc_float: yes
+    css: resources/Rmd-html-style.css
+    number_sections: true
+  bookdown::pdf_document2:
+    df_print: default
+    fig_caption: yes
+    fig_height: 4
+    fig_width: 4
+    highlight: tango
+    latex_engine: xelatex
+    number_sections: yes
+    toc_depth: 2
+  bookdown::word_document2:
+    fig_caption: yes
+    fig_height: 4
+    fig_width: 4
+    highlight: tango
+    toc: yes
+    toc_depth: 2
+output_dir: "docs"
+documentclass: article
+fontsize: 12pt
+mainfont: Arial
+mathfont: LiberationMono
+monofont: DejaVu Sans Mono
+classoption: a4paper
+---
+
+```{r setup, include=FALSE, warnings=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+options(tinytex.engine = 'xelatex')
+library(knitr)
+read_chunk('../scripts/analysis.R')
+```
+
+# Package setup
+
+```{r packages, warnings=FALSE, message=FALSE, results='hide'}
+```
+ 
+# Process data
+
+```{r loadData, results='markdown', eval=TRUE}
+```
+
+The following processing tasks are required:
+
+- define a categorical version of `Year`
+- ensure that `total_achievement` is bound in the [0,1] domain as is required by a Beta distribution
+- ensure that `exam` is bound in the [0,1] domain as is required by a Beta distribution
+- ensure that `on_course` is bound in the [0,1] domain as is required by a Beta distribution
+- ensure that `pracvivaosce` is bound in the [0,1] domain as is required by a Beta distribution
+- ensure that `uninvigilated` is bound in the [0,1] domain as is required by a Beta distribution
+- define a categorical version of `task_change`
+- exclude cases that have missing `task_change` values
+- exclude cases that have missing `total_achievement` values
+
+```{r processData, results='markdown', eval=TRUE, dependson='loadData'}
+```
+  
+## List of responses:
+
+- `total_acheivement`: total score (out of 100)
+- `exam`: exam score (out of 100)
+- `on_course`: total score for on campus assessments (out of 100)
+- `pracvivaosce`: total score associated with practical vivaosce (out of 100)
+
+## List of predictors:
+
+- `Year`: binary (2019 or 2020)
+- `task_change`: cateogical listing of assessment changes between Exploratory
+  - `0`: no change
+
+
+# Exploratory data analyses {.tabset .tabset-faded}
+
+## Total achievement
+
+```{r EDA1, results='markdown', eval=TRUE, fig.width=10, fig.height=10, cache=TRUE}
+```
+
+## Exam score
+
+```{r EDA2, results='markdown', eval=TRUE, fig.width=10, fig.height=10, cache=TRUE}
+```
+ 
+## On course score
+
+```{r EDA3, results='markdown', eval=TRUE, fig.width=10, fig.height=10, cache=TRUE}
+```
+ 
+## Prac vivaosce score
+
+```{r EDA4, results='markdown', eval=TRUE, fig.width=10, fig.height=10, cache=TRUE}
+```
+
+## DNS
+
+```{r EDA5, results='markdown', eval=TRUE, fig.width=10, fig.height=10, cache=TRUE}
+```
+
+Note, in the above, the size of the dot represents the number of students.
+
+
+# {.unlisted .unnumbered .toc-ignore .tabset .tabset-pill}
+
+## Total achievement
+
+```{r EDA1b, results='markdown', eval=TRUE, fig.width=10, fig.height=7, cache=TRUE}
+```
+
+## Exam score
+
+```{r EDA2b, results='markdown', eval=TRUE, fig.width=10, fig.height=7, cache=TRUE}
+```
+
+## On course score
+
+```{r EDA3b, results='markdown', eval=TRUE, fig.width=10, fig.height=7, cache=TRUE}
+```
+
+## Prac vivaosce score
+
+Bla bla (see Figure \@ref(fig:EDA4b)).
+
+(ref:fig-cap) Biochemical oxygen demand
+
+```{r EDA4b, results='markdown', eval=TRUE, fig.width=10, fig.height=7, cache=TRUE, fig.cap='(ref:fig-cap)'}
+```
+
+# Fit models 
+
+For each of the responses, the following will be presented from both
+Frequentist and Bayesian perspectives:
+
+- the **fitted model** and its parameters.  In and of themselves, these are
+  not that interesting as they do not speak directly to most of the
+  questions of interest.
+- **model diagnostics**. All models have underlying assumptions, this
+  section will explore a range of diagnostics designed to help
+  identify poorly fitted models.  The diagnostics shown are patterns
+  in residuals that have been simulated from the fittted Total.
+    - QQ plot - ideally, the black line should be straight if the data
+      (residuals) follow the nominated distribution (beta for all
+      other than DNS)
+    - ideally, there should be no patterns in the Residual vs
+      predicted plot.  Any persistent patterns suggest that there
+      might be more features of the data that are not being captured
+      by the model itself.  It can also suggest that the parameter
+      associated with the shape of the beta parameter is not constant
+      across all levels of the data - this is not easy to address, yet
+      does mean that some comparisons will be more accurate than
+      others.
+    - dispersion tests attempt to explore whether the underlying data
+      have a similar variance to what the nominated distribution (beta
+      in this case) would expect.  If the red line is to the left, it
+      implies that the data are less varied (resuling in over
+      estimates of model uncertainty and thus more conservativeness).
+      If the red line is to the right, it implies that the data are
+      more varied (resulting in under estimates of model uncertainty
+      and thus more anti-conservativeness).  The degree of shift
+      either left or right determines the degree of under or over
+      dispersion respectively.  Underdispersion is difficult to
+      address, yet is more palatable as it just results in more
+      conservative outcomes.
+ - **Overall effect of year (pooling over task change)**.  This
+   explores the overall effect of year by averaging together the
+   effect of year within each task change category.  This is useful
+   when exploring the effect of year evenly across task changes.  In
+   this way a task change with very few students is considered equally
+   important as a task change with a large number of students.  In
+   essence, the task change categories are seen as the units of
+   replication.
+-  **Overall effect of year (pooling over students)**. This explores
+   the overall effect of year by taking a weighted average of the task
+   change categories.  The weights are proportional to the number of
+   students in each task change category.  Hence, this method explores
+   the overall effect of year across the entire student body
+   irrespective of task change - the students are the units of
+   replication.
+- **Effect of year (within task changes)**.  This explores the finer
+  detail of year effects separately within each task change.
+- **Specific contrasts**.  This section explores specific contrasts
+  that are combinations of task changes.
+- **Effect of year level**.  This section explores the interaction
+  between year and student year level - that is, the effect of year
+  within each student year level.
+  
+
+
+## Total achievement {.tabset .tabset-faded}
+
+```{r processTA, results='markdown', eval=TRUE}
+```
+
+### Frequentist {.tabset .tabset-pills}
+
+#### Fit model
+
+```{r fitModels-TA-glmmTMB, results='markdown', eval=FALSE, fig.width=10, fig.height=10}
+```
+
+```{r fitModel-TA-glmmTMB-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+
+#### Model diagnostics
+
+```{r fitModel-TA-glmmTMB-diagnostics, results='markdown', eval=FALSE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+![](../output/mod.TA.diag.png)
+
+Dispersion for Beta is phi with a variance of:
+
+$$
+variance equal to mean*(1-mean)/(1+phi)
+$$
+
+A small dispersion parameter equates to high variance.
+ 
+**Conclusions:**
+
+- there is evidence that the model is _underdispersed_.
+  Underdispersion occurs when the observed data display less variance
+  than would be expected from the model distribution (in this case
+  beta).  Since the Beta distribution is defined by two shape
+  parameters that can be indirectly related back to mean and variance,
+  it is likely that this suggests that the observed data do not follow
+  quite the expected Beta distribution shape given the estimated
+  parameters.
+- this is likely due to the longer left tail of some score distributions
+- there is little that can be done about this.  Nevertheless,
+  underdispersion is typically associated with concervative estimates
+  that if anything are a slight over-estimate of variance and hence,
+  lower power.  Concervatism is the lesser of two evils in that at
+  least any described patterns are likely to be genuine and not an
+  artifact of a poorly fitting model.
+  
+#### Overall effect of year (pooling over task changes)
+
+```{r fitModel-TA-glmmTMB-contrasts1a, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-TA-glmmTMB')}
+```
+
+```{r fitModel-TA-glmmTMB-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-TA-glmmTMB')}
+```
+
+**Conclusions:**
+
+- Total achievement increased from `r round(as.data.frame(em.means)[1,2]*100,2)`% to 
+  `r round(as.data.frame(em.means)[2,2]*100,2)`% between 2019 and 2020.
+- this represents an average increase of `r round(as.data.frame(em.contr)[1,2]*100,2)`
+  percentage units.  This is the **effect size**
+  
+- the 95% confidence intervals provide some insights into the null
+  hypothesis test associated with the 2020/2019 contrast:
+ 
+   - firstly, since the interval does not cross 0, it implies that the effect is "significant"
+   - more importantly however, it gives more information about the
+	 likely effect size.  The effect could be as small as `r round(as.data.frame(em.contr)[1,5]*100,2)` or as large as
+     `r round(as.data.frame(em.contr)[1,6]*100,2)`
+	 
+- for completeness only, I have include p-values.  Note, these are
+  meaningless in the first table as they are testing null hypotheses
+  that total acheivement in 2020 (or 2019) where 0 - clealy this is
+  not a sensible test.  For the contrast, the p-value is less than
+  0.05 suggesting that it is a significant change. **Please dont be
+  tempted to read anything more into p-values - the actual number is
+  meaningless in every context other than power** Statements such as
+  '.. highly significant ..' and '.. more significant ..' portray a
+  missunderstanding of the underlying frequentist statistical
+  principles.  I am sure Fisher et al would be turning in their graves
+  if they knew how their tools were being missused these days.  Sorry,
+  rant over!
+
+#### Overall effect of year (pooling over studentss)
+
+```{r fitModel-TA-glmmTMB-contrasts1b, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-TA-glmmTMB')}
+```
+
+```{r fitModel-TA-glmmTMB-contrasts1figB, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-TA-glmmTMB')}
+```
+
+**Conclusions:**
+
+- Total achievement increased from `r round(as.data.frame(em.means)[1,2]*100,2)`% to 
+  `r round(as.data.frame(em.means)[2,2]*100,2)`% between 2019 and 2020.
+- this represents an average increase of `r round(as.data.frame(em.contr)[1,2]*100,2)`
+  percentage units.  This is the **effect size**
+  
+- the 95% confidence intervals provide some insights into the null
+  hypothesis test associated with the 2020/2019 contrast:
+ 
+   - firstly, since the interval does not cross 0, it implies that the effect is "significant"
+   - more importantly however, it gives more information about the
+	 likely effect size.  The effect could be as small as `r round(as.data.frame(em.contr)[1,5]*100,2)` or as large as
+     `r round(as.data.frame(em.contr)[1,6]*100,2)`
+	 
+- for completeness only, I have include p-values.  Note, these are
+  meaningless in the first table as they are testing null hypotheses
+  that total acheivement in 2020 (or 2019) where 0 - clealy this is
+  not a sensible test.  For the contrast, the p-value is less than
+  0.05 suggesting that it is a significant change. **Please dont be
+  tempted to read anything more into p-values - the actual number is
+  meaningless in every context other than power** Statements such as
+  '.. highly significant ..' and '.. more significant ..' portray a
+  missunderstanding of the underlying frequentist statistical
+  principles.  I am sure Fisher et al would be turning in their graves
+  if they knew how their tools were being missused these days.  Sorry,
+  rant over!
+ 
+#### Effect of year (within task changes)
+
+```{r fitModel-TA-glmmTMB-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-TA-glmmTMB')}
+```
+
+#### Specific contrasts
+
+```{r fitModel-TA-glmmTMB-contrasts3, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+ 
+#### Effect of Year level
+
+```{r fitModel-TA-glmmTMBa-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+
+### Bayesian (approximation) {.tabset .tabset-pills}
+
+#### Fit model
+
+```{r fitModels-TA-inla, results='markdown', eval=FALSE, fig.width=10, fig.height=10}
+```
+
+```{r fitModel-TA-inla-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+
+#### Model diagnostics
+
+```{r fitModel-TA-inla-diagnostics, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-TA-inla')}
+```
+ 
+#### Overall effect of year (pooling over task changes)
+
+```{r fitModel-TA-inla-contrasts1a, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-TA-inla')}
+```
+
+```{r fitModel-TA-inla-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-TA-inla')}
+```
+
+
+#### Overall effect of year (pooling over studentss)
+
+```{r fitModel-TA-inla-contrasts1b, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-TA-inla')}
+```
+
+```{r fitModel-TA-inla-contrasts1figB, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-TA-inla')}
+```
+
+
+#### Effect of year (within task changes)
+
+```{r fitModel-TA-inla-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-TA-inla')}
+```
+
+#### Specific contrasts
+
+```{r fitModel-TA-inla-contrasts3, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+
+
+ 
+#### Effect of Year level
+
+```{r fitModel-TAa-inla-contrasts1, results='markdown', eval=TRUE, results='hide', fig.width=10, fig.height=5, cache=TRUE, echo=FALSE}
+```
+```{r fitModel-TAa-inla-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+
+ 
+
+
+### Bayesian {.tabset .tabset-pills}
+
+#### Fit model
+
+```{r fitModel-TA-brm, results='markdown', eval=FALSE, fig.width=10, fig.height=10}
+```
+
+```{r fitModel-TA-brm-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+
+#### Overall effect of year (pooling over task changes)
+
+```{r fitModel-TA-brm-contrasts1a, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-TA-brm')}
+```
+
+```{r fitModel-TA-brm-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-TA-brm')}
+```
+ 
+#### Overall effect of year (pooling over studentss)
+ 
+```{r fitModel-TA-brm-contrasts1b, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-TA-brm')}
+```
+
+```{r fitModel-TA-brm-contrasts1figB, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-TA-brm')}
+```
+
+#### Effect of year (within task changes)
+
+```{r fitModel-TA-brm-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-TA-inla')}
+```
+
+#### Specific contrasts
+
+```{r fitModel-TA-brm-contrasts3, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+
+#### Effect of Year level
+
+```{r fitModel-TAa-brma, results='markdown', eval=TRUE, results='hide', fig.width=10, fig.height=5, cache=TRUE, echo=FALSE}
+```
+```{r fitModel-TA-brma-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+ 
+ 
+
+
+## Exam score {.tabset .tabset-faded}
+
+```{r processEXAM, results='markdown', eval=TRUE}
+```
+### Frequentist {.tabset .tabset-pills}
+	
+#### Fit model
+
+```{r fitModels-EXAM-glmmTMB, results='markdown', eval=FALSE, fig.width=10, fig.height=10, cache=FALSE}
+```
+
+```{r fitModel-EXAM-glmmTMB-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+
+#### Model diagnostics
+
+```{r fitModel-EXAM-glmmTMB-diagnostics, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-EXAM-glmmTMB')}
+```
+ 
+Dispersion for Beta is phi with a variance of:
+
+$$
+variance equal to mean*(1-mean)/(1+phi)
+$$
+
+A small dispersion parameter equates to high variance.
+ 
+**Conclusions:**
+
+- there is evidence that the model is _underdispersed_.
+  Underdispersion occurs when the observed data display less variance
+  than would be expected from the model distribution (in this case
+  beta).  Since the Beta distribution is defined by two shape
+  parameters that can be indirectly related back to mean and variance,
+  it is likely that this suggests that the observed data do not follow
+  quite the expected Beta distribution shape given the estimated
+  parameters.
+- this is likely due to the longer left tail of some score distributions
+- there is little that can be done about this.  Nevertheless,
+  underdispersion is typically associated with concervative estimates
+  that if anything are a slight over-estimate of variance and hence,
+  lower power.  Concervatism is the lesser of two evils in that at
+  least any described patterns are likely to be genuine and not an
+  artifact of a poorly fitting model.
+  
+#### Overall effect of year (pooling over task changes)
+
+```{r fitModel-EXAM-glmmTMB-contrasts1a, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-EXAM-glmmTMB')}
+```
+
+```{r fitModel-EXAM-glmmTMB-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-EXAM-glmmTMB')}
+```
+
+**Conclusions:**
+
+- Exam score increased from `r round(as.data.frame(em.means)[1,2]*100,2)`% to 
+  `r round(as.data.frame(em.means)[2,2]*100,2)`% between 2019 and 2020.
+- this represents an average increase of `r round(as.data.frame(em.contr)[1,2]*100,2)`
+  percentage units.  This is the **effect size**
+  
+- the 95% confidence intervals provide some insights into the null
+  hypothesis test associated with the 2020/2019 contrast:
+ 
+   - firstly, since the interval does not cross 0, it implies that the effect is "significant"
+   - more importantly however, it gives more information about the
+	 likely effect size.  The effect could be as small as `r round(as.data.frame(em.contr)[1,5]*100,2)` or as large as
+     `r round(as.data.frame(em.contr)[1,6]*2,100)`
+	 
+- for completeness only, I have include p-values.  Note, these are
+  meaningless in the first table as they are testing null hypotheses
+  that total acheivement in 2020 (or 2019) where 0 - clealy this is
+  not a sensible test.  For the contrast, the p-value is less than
+  0.05 suggesting that it is a significant change. **Please dont be
+  tempted to read anything more into p-values - the actual number is
+  meaningless in every context other than power** Statements such as
+  '.. highly significant ..' and '.. more significant ..' portray a
+  missunderstanding of the underlying frequentist statistical
+  principles.  I am sure Fisher et al would be turning in their graves
+  if they knew how their tools were being missused these days.  Sorry,
+  rant over!
+ 
+#### Overall effect of year (pooling over studentss)
+
+```{r fitModel-EXAM-glmmTMB-contrasts1b, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-EXAM-glmmTMB')}
+```
+
+```{r fitModel-EXAM-glmmTMB-contrasts1figB, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-EXAM-glmmTMB')}
+```
+ 
+#### Effect of year (within task changes)
+
+```{r fitModel-EXAM-glmmTMB-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-EXAM-glmmTMB')}
+```
+
+#### Specific contrasts
+
+```{r fitModel-EXAM-glmmTMB-contrasts3, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+#### Effect of Year level
+
+```{r fitModel-EXAM-glmmTMBa-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+### Bayesian (approximation) {.tabset .tabset-pills}
+
+#### Fit model
+
+```{r fitModels-EXAM-inla, results='markdown', eval=FALSE, fig.width=10, fig.height=10}
+```
+
+```{r fitModel-EXAM-inla-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+
+#### Model diagnostics
+
+```{r fitModel-EXAM-inla-diagnostics, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-EXAM-inla')}
+```
+ 
+#### Overall effect of year (pooling over task changes)
+
+```{r fitModel-EXAM-inla-contrasts1a, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-EXAM-inla')}
+```
+
+```{r fitModel-EXAM-inla-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-EXAM-inla')}
+```
+
+#### Overall effect of year (pooling over studentss)
+
+```{r fitModel-EXAM-inla-contrasts1b, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-EXAM-inla')}
+```
+
+```{r fitModel-EXAM-inla-contrasts1figB, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-EXAM-inla')}
+```
+
+#### Effect of year (within task changes)
+
+```{r fitModel-EXAM-inla-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-EXAM-inla')}
+```
+
+#### Specific contrasts
+
+```{r fitModel-EXAM-inla-contrasts3, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+
+#### Effect of Year level
+
+```{r fitModel-EXAMa-inla-contrasts1, results='hide', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, echo=FALSE}
+```
+```{r fitModel-EXAMa-inla-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+
+ 
+
+
+
+
+
+### Bayesian {.tabset .tabset-pills}
+
+#### Fit model
+
+```{r fitModel-EXAM-brm, results='markdown', eval=FALSE, fig.width=10, fig.height=10}
+```
+
+```{r fitModel-EXAM-brm-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+
+#### Overall effect of year (pooling over task changes)
+
+```{r fitModel-EXAM-brm-contrasts1a, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-EXAM-brm')}
+```
+
+```{r fitModel-EXAM-brm-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-EXAM-brm')}
+```
+ 
+#### Overall effect of year (pooling over studentss)
+ 
+```{r fitModel-EXAM-brm-contrasts1b, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-EXAM-brm')}
+```
+
+```{r fitModel-EXAM-brm-contrasts1figB, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-EXAM-brm')}
+```
+
+#### Effect of year (within task changes)
+
+```{r fitModel-EXAM-brm-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-EXAM-inla')}
+```
+
+#### Specific contrasts
+
+```{r fitModel-EXAM-brm-contrasts3, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+
+#### Effect of Year level
+
+```{r fitModel-EXAMa-brma, results='markdown', eval=TRUE, results='hide', fig.width=10, fig.height=5, cache=TRUE, echo=FALSE}
+```
+```{r fitModel-EXAM-brma-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+  
+## On course score {.tabset .tabset-faded}
+
+```{r processOC, results='markdown', eval=TRUE}
+```
+### Frequentist {.tabset .tabset-pills}
+
+#### Fit model
+
+```{r fitModels-OC-glmmTMB, results='markdown', eval=FALSE, fig.width=10, fig.height=10, cache=FALSE}
+```
+
+```{r fitModel-OC-glmmTMB-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+
+#### Model diagnostics
+
+```{r fitModel-OC-glmmTMB-diagnostics, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-OC-glmmTMB')}
+```
+ 
+#### Overall effect of year (pooling over task changes)
+
+```{r fitModel-OC-glmmTMB-contrasts1a, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-OC-glmmTMB')}
+```
+
+```{r fitModel-OC-glmmTMB-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-OC-glmmTMB')}
+```
+ 
+#### Overall effect of year (pooling  task changes)
+
+```{r fitModel-OC-glmmTMB-contrasts1b, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-OC-glmmTMB')}
+```
+
+```{r fitModel-OC-glmmTMB-contrasts1figB, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-OC-glmmTMB')}
+```
+
+#### Effect of year (within task changes)
+
+```{r fitModel-OC-glmmTMB-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-OC-glmmTMB')}
+```
+
+#### Specific contrasts
+
+```{r fitModel-OC-glmmTMB-contrasts3, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+
+#### Effect of Year level
+
+```{r fitModel-OC-glmmTMBa-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+### Bayesian (approximation) {.tabset .tabset-pills}
+
+#### Fit model
+
+```{r fitModels-OC-inla, results='markdown', eval=FALSE, fig.width=10, fig.height=10}
+```
+
+```{r fitModel-OC-inla-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+
+#### Model diagnostics
+
+```{r fitModel-OC-inla-diagnostics, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-OC-inla')}
+```
+ 
+#### Overall effect of year (pooling over task changes)
+
+```{r fitModel-OC-inla-contrasts1a, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-OC-inla')}
+```
+
+```{r fitModel-OC-inla-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-OC-inla')}
+```
+
+#### Overall effect of year (pooling over studentss)
+
+```{r fitModel-OC-inla-contrasts1b, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-OC-inla')}
+```
+
+```{r fitModel-OC-inla-contrasts1figB, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-OC-inla')}
+```
+
+#### Effect of year (within task changes)
+
+```{r fitModel-OC-inla-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-OC-inla')}
+```
+
+#### Specific contrasts
+
+```{r fitModel-OC-inla-contrasts3, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+#### Effect of Year level
+
+```{r fitModel-OCa-inla-contrasts1, results='hide', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, echo=TRUE}
+```
+```{r fitModel-OCa-inla-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+ 
+  
+
+
+
+ 
+
+
+
+ 
+
+
+
+
+### Bayesian {.tabset .tabset-pills}
+
+#### Fit model
+
+```{r fitModel-OC-brm, results='markdown', eval=FALSE, fig.width=10, fig.height=10}
+```
+
+```{r fitModel-OC-brm-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+
+#### Overall effect of year (pooling over task changes)
+
+```{r fitModel-OC-brm-contrasts1a, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-OC-brm')}
+```
+
+```{r fitModel-OC-brm-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-OC-brm')}
+```
+ 
+#### Overall effect of year (pooling over studentss)
+ 
+```{r fitModel-OC-brm-contrasts1b, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-OC-brm')}
+```
+
+```{r fitModel-OC-brm-contrasts1figB, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-OC-brm')}
+```
+   
+#### Effect of year (within task changes)
+
+```{r fitModel-OC-brm-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-OC-inla')}
+```
+
+#### Specific contrasts
+
+```{r fitModel-OC-brm-contrasts3, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+
+#### Effect of Year level
+
+```{r fitModel-OCa-brma, results='markdown', eval=TRUE, results='hide', fig.width=10, fig.height=5, cache=TRUE, echo=FALSE}
+```
+```{r fitModel-OC-brma-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+  
+
+
+## Prac vivaosce score {.tabset .tabset-faded}
+
+```{r processPR, results='markdown', eval=TRUE}
+```
+### Frequentist {.tabset .tabset-pills}
+
+#### Fit model
+
+```{r fitModels-PR-glmmTMB, results='markdown', eval=FALSE, fig.width=10, fig.height=10, cache=FALSE}
+```
+
+```{r fitModel-PR-glmmTMB-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+
+#### Model diagnostics
+
+```{r fitModel-PR-glmmTMB-diagnostics, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-PR-glmmTMB')}
+```
+  
+#### Overall effect of year (pooling over task changes)
+
+```{r fitModel-PR-glmmTMB-contrasts1a, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-PR-glmmTMB')}
+```
+
+```{r fitModel-PR-glmmTMB-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-PR-glmmTMB')}
+```
+
+#### Overall effect of year (pooling over studentss)
+
+```{r fitModel-PR-glmmTMB-contrasts1b, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-PR-glmmTMB')}
+```
+
+```{r fitModel-PR-glmmTMB-contrasts1figB, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-PR-glmmTMB')}
+```
+ 
+#### Effect of year (within task changes)
+
+```{r fitModel-PR-glmmTMB-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-PR-glmmTMB')}
+```
+
+#### Specific contrasts
+	
+```{r fitModel-PR-glmmTMB-contrasts3, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+#### Effect of Year level
+
+```{r fitModel-PR-glmmTMBa-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+ 
+
+### Bayesian (approximation) {.tabset .tabset-pills}
+
+#### Fit model
+
+```{r fitModels-PR-inla, results='markdown', eval=FALSE, fig.width=10, fig.height=10}
+```
+
+```{r fitModel-PR-inla-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+ 
+#### Model diagnostics
+
+```{r fitModel-PR-inla-diagnostics, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-PR-inla')}
+```
+ 
+#### Overall effect of year (pooling over task changes)
+	
+```{r fitModel-PR-inla-contrasts1a, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-PR-inla')}
+```
+
+```{r fitModel-PR-inla-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-PR-inla')}
+```
+
+#### Overall effect of year (pooling over studentss)
+	
+```{r fitModel-PR-inla-contrasts1b, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-PR-inla')}
+```
+
+```{r fitModel-PR-inla-contrasts1figB, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-PR-inla')}
+```
+
+
+#### Effect of year (within task changes)
+
+```{r fitModel-PR-inla-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-PR-inla')}
+```
+
+#### Specific contrasts
+
+```{r fitModel-PR-inla-contrasts3, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+#### Effect of Year level
+
+```{r fitModel-PRa-inla-contrasts1, results='hide', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, echo=TRUE}
+```
+```{r fitModel-PRa-inla-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+ 
+  
+
+### Bayesian {.tabset .tabset-pills}
+
+#### Fit model
+
+```{r fitModel-PR-brm, results='markdown', eval=FALSE, fig.width=10, fig.height=10}
+```
+
+```{r fitModel-PR-brm-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+
+#### Overall effect of year (pooling over task changes)
+
+```{r fitModel-PR-brm-contrasts1a, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-PR-brm')}
+```
+
+```{r fitModel-PR-brm-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-PR-brm')}
+```
+ 
+#### Overall effect of year (pooling over studentss)
+ 
+```{r fitModel-PR-brm-contrasts1b, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-PR-brm')}
+```
+
+```{r fitModel-PR-brm-contrasts1figB, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-PR-brm')}
+```
+   
+#### Effect of year (within task changes)
+
+```{r fitModel-PR-brm-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-PR-inla')}
+```
+
+#### Specific contrasts
+
+```{r fitModel-PR-brm-contrasts3, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+
+#### Effect of Year level
+
+```{r fitModel-PRa-brma, results='markdown', eval=TRUE, results='hide', fig.width=10, fig.height=5, cache=TRUE, echo=FALSE}
+```
+```{r fitModel-PR-brma-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+  
+
+
+## DNS {.tabset .tabset-faded}
+
+```{r prepare4DNS, results='markdown', eval=TRUE}
+```
+
+### Frequentist {.tabset .tabset-pills}
+
+#### Fit model
+
+```{r fitModels-DNS-glmmTMB, results='markdown', eval=FALSE, fig.width=10, fig.height=10, cache=FALSE}
+```
+
+```{r fitModel-DNS-glmmTMB-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+
+#### Model diagnostics
+
+```{r fitModel-DNS-glmmTMB-diagnostics, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-EXAM-glmmTMB')}
+```
+  
+#### Overall effect of year (pooling over task changes)
+
+```{r fitModel-DNS-glmmTMB-contrasts1a, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-EXAM-glmmTMB')}
+```
+
+```{r fitModel-DNS-glmmTMB-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-EXAM-glmmTMB')}
+```
+ 
+#### Overall effect of year (pooling over studentss)
+
+```{r fitModel-DNS-glmmTMB-contrasts1b, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-EXAM-glmmTMB')}
+```
+
+```{r fitModel-DNS-glmmTMB-contrasts1figB, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-EXAM-glmmTMB')}
+```
+ 
+#### Effect of year (within task changes)
+
+```{r fitModel-DNS-glmmTMB-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-EXAM-glmmTMB')}
+```
+
+#### Specific contrasts
+
+```{r fitModel-DNS-glmmTMB-contrasts3, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+#### Effect of Year level
+
+```{r fitModel-DNS-glmmTMBa-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+
+
+### Bayesian (approximation) {.tabset .tabset-pills}
+
+#### Fit model
+
+```{r fitModels-DNS-inla, results='markdown', eval=FALSE, fig.width=10, fig.height=10}
+```
+
+```{r fitModel-DNS-inla-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+
+#### Model diagnostics
+
+```{r fitModel-DNS-inla-diagnostics, results='markdown', eval=FALSE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-DNS-inla')}
+```
+ 
+#### Overall effect of year (pooling over task changes)
+
+```{r fitModel-DNS-inla-contrasts1a, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-DNS-inla')}
+```
+
+```{r fitModel-DNS-inla-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-DNS-inla')}
+```
+
+#### Overall effect of year (pooling over studentss)
+
+```{r fitModel-DNS-inla-contrasts1b, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-DNS-inla')}
+```
+
+```{r fitModel-DNS-inla-contrasts1figB, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-DNS-inla')}
+```
+
+#### Effect of year (within task changes)
+
+```{r fitModel-DNS-inla-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-DNS-inla')}
+```
+
+#### Specific contrasts
+
+```{r fitModel-DNS-inla-contrasts3, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+#### Effect of Year level
+
+```{r fitModel-DNSa-inla-contrasts1, results='hide', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, echo=FALSE}
+```
+```{r fitModel-DNSa-inla-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+
+  
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+ 
+  
+  
+
+
+### Bayesian {.tabset .tabset-pills}
+
+#### Fit model
+
+```{r fitModel-DNS-brm, results='markdown', eval=FALSE, fig.width=10, fig.height=10}
+```
+
+```{r fitModel-DNS-brm-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+
+#### Overall effect of year (pooling over task changes)
+
+```{r fitModel-DNS-brm-contrasts1a, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-DNS-brm')}
+```
+
+```{r fitModel-DNS-brm-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-DNS-brm')}
+```
+ 
+#### Overall effect of year (pooling over studentss)
+ 
+```{r fitModel-DNS-brm-contrasts1b, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-DNS-brm')}
+```
+
+```{r fitModel-DNS-brm-contrasts1figB, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processData','fitModels-DNS-brm')}
+```
+
+#### Effect of year (within task changes)
+	
+```{r fitModel-DNS-brm-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processData','fitModels-DNS-inla')}
+```
+
+#### Specific contrasts
+
+```{r fitModel-DNS-brm-contrasts3, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+
+#### Effect of Year level
+
+```{r fitModel-DNSa-brma, results='markdown', eval=TRUE, results='hide', fig.width=10, fig.height=5, cache=TRUE, echo=FALSE}
+```
+```{r fitModel-DNS-brma-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+ 
+ 
+
+
+
+
+# Compilation figures
+```{r compilationFigures1, results='markdown', eval=TRUE}
+```
+
+![](../output/CompilationFigure.png)
+
+# Withdrawals {.tabset .tabset-faded}
+```{r readWithdrawals, results='markdown', eval=TRUE}
+```
+
+Data processing.
+
+```{r processWithdrawals, results='markdown', eval=TRUE}
+```
+
+## By census date (Bayesian) {.tabset .tabset-pills}
+### Fit model
+
+```{r fitModels-census-brm, results='markdown', eval=FALSE, fig.width=10, fig.height=10}
+```
+
+```{r fitModel-census-brm-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+
+### Overall effect of year
+
+```{r fitModel-census-brm-contrasts1a2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processWithdrawals','fitModels-census-brm')}
+```
+
+```{r fitModel-census-brm-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processWithdrawals','fitModels-census-brm')}
+```
+ 
+### Effect of Year level
+
+```{r fitModel-census-brm-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+## By last date (Bayesian) {.tabset .tabset-pills}
+### Fit model
+
+```{r fitModels-last-brm, results='markdown', eval=FALSE, fig.width=10, fig.height=10}
+```
+
+```{r fitModel-last-brm-summary, results='markdown', eval=TRUE, fig.width=10, fig.height=10}
+```
+
+### Overall effect of year
+
+```{r fitModel-last-brm-contrasts1a2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE, dependson=c('processWithdrawals','fitModels-last-brm')}
+```
+
+```{r fitModel-last-brm-contrasts1figA, results='markdown', eval=TRUE, fig.width=8, fig.height=4, cache=TRUE, dependson=c('processWithdrawals','fitModels-last-brm')}
+```
+ 
+### Effect of Year level
+
+```{r fitModel-last-brm-contrasts2, results='markdown', eval=TRUE, fig.width=10, fig.height=5, cache=TRUE}
+```
+
+ 
